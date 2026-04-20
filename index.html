@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UCH TPN Prescription (Ver. 1)</title>
+    <title>UCH TPN Calculator (Ver. 1)</title>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="IMG_3277.png">
     <style>
@@ -26,7 +26,7 @@
 <body>
 
 <div class="card">
-    <h2>UCH TPN Prescription (Ver. 1)</h2>
+    <h2>UCH TPN Calculator (Ver. 1)</h2>
     
     <div class="input-group">
         <label>PATIENT’S WEIGHT (kg)</label>
@@ -123,7 +123,6 @@ function calculate() {
         glycophos: parseFloat(document.getElementById('glycophos').value) || 0
     };
 
-    // Prep Volume Calculation
     const prepVol = product.vol + additives.trace + additives.cernevit + additives.soluvit + additives.vitalipid + additives.nacl + (additives.kcl * 0.5) + additives.glycophos;
     const prepNa = product.na + additives.nacl + (additives.glycophos * 2);
     const prepK = product.k + additives.kcl;
