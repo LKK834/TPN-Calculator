@@ -39,8 +39,8 @@
     </div>
 
     <div class="grid">
-        <div class="input-group"><label>Addaven (ml)</label><input type="number" id="addaven" value="10"></div>
-        <div class="input-group"><label>Nutryelt (ml)</label><input type="number" id="nutryelt" value="0"></div>
+        <div class="input-group"><label>Addaven / Nutryelt (ml)</label><input type="number" id="trace" value="10"></div>
+        <div class="input-group"><label>Cernevit (ml)</label><input type="number" id="cernevit" value="0"></div>
         <div class="input-group"><label>Soluvit N (ml)</label><input type="number" id="soluvit" value="10"></div>
         <div class="input-group"><label>Vitalipid N Adult (ml)</label><input type="number" id="vitalipid" value="10"></div>
         <div class="input-group"><label>5.85% NaCl (mmol)</label><input type="number" id="nacl" value="0"></div>
@@ -114,8 +114,8 @@ function calculate() {
     const duration = parseFloat(document.getElementById('duration').value) || 0;
     
     const additives = {
-        addaven: parseFloat(document.getElementById('addaven').value) || 0,
-        nutryelt: parseFloat(document.getElementById('nutryelt').value) || 0,
+        trace: parseFloat(document.getElementById('trace').value) || 0,
+        cernevit: parseFloat(document.getElementById('cernevit').value) || 0,
         soluvit: parseFloat(document.getElementById('soluvit').value) || 0,
         vitalipid: parseFloat(document.getElementById('vitalipid').value) || 0,
         nacl: parseFloat(document.getElementById('nacl').value) || 0,
@@ -123,7 +123,8 @@ function calculate() {
         glycophos: parseFloat(document.getElementById('glycophos').value) || 0
     };
 
-    const prepVol = product.vol + additives.addaven + additives.nutryelt + additives.soluvit + additives.vitalipid + additives.nacl + (additives.kcl * 0.5) + additives.glycophos;
+    // Prep Volume Calculation
+    const prepVol = product.vol + additives.trace + additives.cernevit + additives.soluvit + additives.vitalipid + additives.nacl + (additives.kcl * 0.5) + additives.glycophos;
     const prepNa = product.na + additives.nacl + (additives.glycophos * 2);
     const prepK = product.k + additives.kcl;
     const prepPO4 = product.po4 + additives.glycophos;
