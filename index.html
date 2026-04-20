@@ -10,25 +10,26 @@
         :root { --primary: #2c3e50; --accent: #3498db; }
         body { font-family: -apple-system, system-ui, sans-serif; background: #f4f7f6; padding: 20px; color: var(--primary); }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; margin: auto; }
-        h2 { border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+        h2 { border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-top: 0; }
         .input-group { margin-bottom: 15px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9em; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.85em; text-transform: uppercase; color: #7f8c8d; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        button { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; margin-top: 10px; }
-        #results { margin-top: 20px; display: none; }
-        .alert { color: #721c24; background: #f8d7da; padding: 10px; border-radius: 6px; border: 1px solid #f5c6cb; margin-top: 10px; }
-        .result-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #eee; }
+        button { width: 100%; padding: 15px; background: var(--accent); color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        #results { margin-top: 20px; display: none; border-top: 2px solid #eee; padding-top: 15px; }
+        .alert { color: #721c24; background: #f8d7da; padding: 12px; border-radius: 6px; border: 1px solid #f5c6cb; margin-bottom: 15px; font-weight: bold; }
+        .result-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+        .val { font-weight: bold; color: var(--primary); }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>TPN Prescription Calculator</h2>
+    <h2>TPN Prescriber</h2>
     
     <div class="input-group">
         <label>Patient Weight (kg)</label>
-        <input type="number" id="weight" placeholder="e.g. 70">
+        <input type="number" id="weight" step="0.1">
     </div>
 
     <div class="input-group">
@@ -36,8 +37,6 @@
         <select id="tpnSelect"></select>
     </div>
 
-    <hr>
-    <label>Additives</label>
     <div class="grid">
         <div class="input-group"><label>Addaven (ml)</label><input type="number" id="addaven" value="0"></div>
         <div class="input-group"><label>Soluvit N (ml)</label><input type="number" id="soluvit" value="0"></div>
@@ -47,12 +46,13 @@
         <div class="input-group"><label>Glycophos (mmol)</label><input type="number" id="glycophos" value="0"></div>
     </div>
 
-    <hr>
+    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+
     <div class="input-group">
-        <label>Infusion Mode</label>
+        <label>Infusion Input Option</label>
         <select id="mode" onchange="toggleMode()">
-            <option value="whole">Whole Bag over Hours</option>
-            <option value="rate">Specific Rate (ml/hr)</option>
+            <option value="whole">Whole bag over number of hours</option>
+            <option value="rate">ml/hr over number of hours</option>
         </select>
     </div>
 
@@ -61,11 +61,11 @@
         <div class="input-group"><label>Duration (hrs)</label><input type="number" id="duration" value="24"></div>
     </div>
 
-    <button onclick="calculate()">Calculate Regimen</button>
+    <button onclick="calculate()">Calculate Actual Delivery</button>
 
     <div id="results">
         <div id="rateAlert" class="alert" style="display:none;"></div>
-        <h3>Summary</h3>
+        <h3 style="margin-bottom:10px;">Actual Delivery Summary</h3>
         <div id="summaryContent"></div>
     </div>
 </div>
@@ -85,10 +85,9 @@ const db = {
     "PeriOlimel N4E 2000": { vol: 2000, kcal: 1400, protein: 50.6, cho: 150, lipid: 60, na: 42, k: 32, ca: 4, mg: 4.4, po4: 17, maxR: 3.2 },
     "Olimel N9E 1500": { vol: 1500, kcal: 1600, protein: 85.4, cho: 165, lipid: 60, na: 52.5, k: 45, ca: 5.3, mg: 6, po4: 22.5, maxR: 1.8 },
     "Nutriflex Plus Central 1000": { vol: 1000, kcal: 792, protein: 48, cho: 150, lipid: 0, na: 37.2, k: 25, ca: 3.6, mg: 5.7, po4: 20, maxR: 1.6 },
-    "BFLUID 1000": { vol: 1000, kcal: 420, protein: 30, cho: 75, lipid: 0, na: 35, k: 20, ca: 35, mg: 5, po4: 10, maxR: 999 } // maxR set high, logic handled separately
+    "BFLUID 1000": { vol: 1000, kcal: 420, protein: 30, cho: 75, lipid: 0, na: 35, k: 20, ca: 35, mg: 5, po4: 10, maxR: 999 }
 };
 
-// Populate Select
 const select = document.getElementById('tpnSelect');
 Object.keys(db).forEach(key => {
     let opt = document.createElement('option');
@@ -103,62 +102,83 @@ function toggleMode() {
 
 function calculate() {
     const w = parseFloat(document.getElementById('weight').value);
-    if (!w) { alert("Please enter patient weight"); return; }
+    if (!w) { alert("Please enter weight"); return; }
     
     const product = db[select.value];
-    const hours = parseFloat(document.getElementById('duration').value);
+    const duration = parseFloat(document.getElementById('duration').value) || 0;
     
-    // Additives
-    const addaven = parseFloat(document.getElementById('addaven').value) || 0;
-    const soluvit = parseFloat(document.getElementById('soluvit').value) || 0;
-    const vitalipid = parseFloat(document.getElementById('vitalipid').value) || 0;
-    const nacl = parseFloat(document.getElementById('nacl').value) || 0;
-    const kcl = parseFloat(document.getElementById('kcl').value) || 0;
-    const glycophos = parseFloat(document.getElementById('glycophos').value) || 0;
+    // 1. Preparation Phase (The Bag)
+    const additives = {
+        addaven: parseFloat(document.getElementById('addaven').value) || 0,
+        soluvit: parseFloat(document.getElementById('soluvit').value) || 0,
+        vitalipid: parseFloat(document.getElementById('vitalipid').value) || 0,
+        nacl: parseFloat(document.getElementById('nacl').value) || 0, // mmol
+        kcl: parseFloat(document.getElementById('kcl').value) || 0, // mmol
+        glycophos: parseFloat(document.getElementById('glycophos').value) || 0 // mmol
+    };
 
-    // Volume logic
-    let additiveVol = addaven + soluvit + vitalipid + nacl + (kcl * 0.5) + glycophos;
-    let totalVol = product.vol + additiveVol;
-    
-    // Electrolyte logic
-    let totalNa = product.na + nacl + (glycophos * 2);
-    let totalK = product.k + kcl;
-    let totalPO4 = product.po4 + glycophos;
+    const prepVol = product.vol + additives.addaven + additives.soluvit + additives.vitalipid + additives.nacl + (additives.kcl * 0.5) + additives.glycophos;
+    const prepNa = product.na + additives.nacl + (additives.glycophos * 2);
+    const prepK = product.k + additives.kcl;
+    const prepPO4 = product.po4 + additives.glycophos;
 
-    // Rate Calculation
-    let hourlyRate;
+    // 2. Delivery Phase
+    let infusedVol, hourlyRate;
     if (document.getElementById('mode').value === 'whole') {
-        hourlyRate = totalVol / hours;
+        infusedVol = prepVol;
+        hourlyRate = prepVol / duration;
     } else {
-        hourlyRate = parseFloat(document.getElementById('inputRate').value);
+        hourlyRate = parseFloat(document.getElementById('inputRate').value) || 0;
+        infusedVol = hourlyRate * duration;
     }
+
+    // Pro-rata Factor (Cannot exceed 1, i.e., can't infuse more than what's in the bag)
+    const ratio = Math.min(infusedVol / prepVol, 1);
     
-    let ratePerKg = hourlyRate / w;
-    
-    // Alerts
+    // 3. Final Nutrient Calculation
+    const delivery = {
+        vol: infusedVol,
+        kcal: product.kcal * ratio,
+        pro: product.protein * ratio,
+        cho: product.cho * ratio,
+        fat: product.lipid * ratio,
+        na: prepNa * ratio,
+        k: prepK * ratio,
+        po4: prepPO4 * ratio,
+        rateKg: hourlyRate / w
+    };
+
+    // Safety Checks
     const alertBox = document.getElementById('rateAlert');
     alertBox.style.display = 'none';
-    if (select.value.includes("BFLUID")) {
-        if (hourlyRate > 1000) { alertBox.style.display = 'block'; alertBox.innerHTML = "⚠️ EXCEEDS MAX RATE: BFLUID capped at 1000ml/hr"; }
-    } else if (ratePerKg > product.maxR) {
-        alertBox.style.display = 'block';
-        alertBox.innerHTML = `⚠️ EXCEEDS MAX RATE: ${ratePerKg.toFixed(2)} ml/kg/hr (Max: ${product.maxR})`;
+    if (select.value.includes("BFLUID") && hourlyRate > 1000) {
+        alertBox.style.display = 'block'; alertBox.innerHTML = "⚠️ ALERT: BFLUID exceeds 1000ml/hr limit.";
+    } else if (!select.value.includes("BFLUID") && delivery.rateKg > product.maxR) {
+        alertBox.style.display = 'block'; alertBox.innerHTML = `⚠️ ALERT: Max rate is ${product.maxR} ml/kg/hr. Current: ${delivery.rateKg.toFixed(2)}`;
+    }
+    if (infusedVol > prepVol) {
+        alertBox.style.display = 'block'; alertBox.innerHTML += "<br>⚠️ INFO: Infusion volume exceeds prepared bag volume.";
     }
 
-    // Render results
+    // UI Output
     document.getElementById('results').style.display = 'block';
     document.getElementById('summaryContent').innerHTML = `
-        <div class="result-item"><span>Total Volume:</span><span>${totalVol.toFixed(1)} ml</span></div>
-        <div class="result-item"><span>Total Energy:</span><span>${product.kcal} kcal</span></div>
-        <div class="result-item"><span>Amino Acids:</span><span>${product.protein} g</span></div>
-        <div class="result-item"><span>Lipids:</span><span>${product.lipid} g</span></div>
-        <div class="result-item"><span>Carbohydrates:</span><span>${product.cho} g</span></div>
-        <div class="result-item"><span>Sodium (Na):</span><span>${totalNa.toFixed(1)} mmol</span></div>
-        <div class="result-item"><span>Potassium (K):</span><span>${totalK.toFixed(1)} mmol</span></div>
-        <div class="result-item"><span>Phosphate (PO4):</span><span>${totalPO4.toFixed(1)} mmol</span></div>
-        <div class="result-item"><span>Infusion Rate:</span><span>${hourlyRate.toFixed(1)} ml/hr</span></div>
-        <div class="result-item"><span>Weight-based Rate:</span><span>${ratePerKg.toFixed(2)} ml/kg/hr</span></div>
+        <div class="result-item"><span>Actual Volume Infused:</span><span class="val">${delivery.vol.toFixed(1)} ml</span></div>
+        <div class="result-item"><span>Energy:</span><span class="val">${delivery.kcal.toFixed(0)} kcal</span></div>
+        <div class="result-item"><span>Amino Acids:</span><span class="val">${delivery.pro.toFixed(1)} g</span></div>
+        <div class="result-item"><span>Lipids:</span><span class="val">${delivery.fat.toFixed(1)} g</span></div>
+        <div class="result-item"><span>Carbohydrates:</span><span class="val">${delivery.cho.toFixed(1)} g</span></div>
+        <div class="result-item"><span>Sodium (Na):</span><span class="val">${delivery.na.toFixed(1)} mmol</span></div>
+        <div class="result-item"><span>Potassium (K):</span><span class="val">${delivery.k.toFixed(1)} mmol</span></div>
+        <div class="result-item"><span>Phosphate (PO4):</span><span class="val">${delivery.po4.toFixed(1)} mmol</span></div>
+        <hr>
+        <div class="result-item"><span>Infusion Rate:</span><span class="val">${hourlyRate.toFixed(1)} ml/hr</span></div>
+        <div class="result-item"><span>Rate per kg:</span><span class="val">${delivery.rateKg.toFixed(2)} ml/kg/hr</span></div>
     `;
+}
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js'); });
 }
 </script>
 </body>
