@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>UCH TPN Prescription</title>
+    <title>UCH TPN Prescription (Ver. 1)</title>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="IMG_3277.png">
     <style>
@@ -26,7 +26,7 @@
 <body>
 
 <div class="card">
-    <h2>UCH TPN Prescription</h2>
+    <h2>UCH TPN Prescription (Ver. 1)</h2>
     
     <div class="input-group">
         <label>PATIENT’S WEIGHT (kg)</label>
@@ -123,11 +123,11 @@ function calculate() {
         glycophos: parseFloat(document.getElementById('glycophos').value) || 0
     };
 
-    // Prep Volume Calculation
     const prepVol = product.vol + additives.addaven + additives.nutryelt + additives.soluvit + additives.vitalipid + additives.nacl + (additives.kcl * 0.5) + additives.glycophos;
     const prepNa = product.na + additives.nacl + (additives.glycophos * 2);
     const prepK = product.k + additives.kcl;
     const prepPO4 = product.po4 + additives.glycophos;
+    const prepMg = product.mg;
 
     let infusedVol, hourlyRate;
     if (document.getElementById('mode').value === 'whole') {
@@ -149,6 +149,7 @@ function calculate() {
         na: prepNa * ratio,
         k: prepK * ratio,
         po4: prepPO4 * ratio,
+        mg: prepMg * ratio,
         rateKg: hourlyRate / w
     };
 
@@ -170,6 +171,7 @@ function calculate() {
         <div class="result-item"><span>Sodium (Na):</span><span class="val">${delivery.na.toFixed(1)} mmol</span></div>
         <div class="result-item"><span>Potassium (K):</span><span class="val">${delivery.k.toFixed(1)} mmol</span></div>
         <div class="result-item"><span>Phosphate (PO4):</span><span class="val">${delivery.po4.toFixed(1)} mmol</span></div>
+        <div class="result-item"><span>Magnesium (Mg):</span><span class="val">${delivery.mg.toFixed(1)} mmol</span></div>
         <hr style="border:0; border-top:1px dashed #ccc;">
         <div class="result-item"><span>Infusion Rate:</span><span class="val">${hourlyRate.toFixed(1)} ml/hr</span></div>
         <div class="result-item"><span>Rate per kg:</span><span class="val">${delivery.rateKg.toFixed(2)} ml/kg/hr</span></div>
