@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TPN Prescriber Pro</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="IMG_3277.png">
+    <style>
+        :root { --primary: #2c3e50; --accent: #3498db; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: #f4f7f6; padding: 20px; color: var(--primary); }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; margin: auto; }
+        h2 { border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9em; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        button { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        #results { margin-top: 20px; display: none; }
+        .alert { color: #721c24; background: #f8d7da; padding: 10px; border-radius: 6px; border: 1px solid #f5c6cb; margin-top: 10px; }
+        .result-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #eee; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>TPN Prescription Calculator</h2>
+    
+    <div class="input-group">
+        <label>Patient Weight (kg)</label>
+        <input type="number" id="weight" placeholder="e.g. 70">
+    </div>
+
+    <div class="input-group">
+        <label>TPN Formula</label>
+        <select id="tpnSelect"></select>
+    </div>
+
+    <hr>
+    <label>Additives</label>
+    <div class="grid">
+        <div class="input-group"><label>Addaven (ml)</label><input type="number" id="addaven" value="0"></div>
+        <div class="input-group"><label>Soluvit N (ml)</label><input type="number" id="soluvit" value="0"></div>
+        <div class="input-group"><label>Vitalipid N (ml)</label><input type="number" id="vitalipid" value="0"></div>
+        <div class="input-group"><label>5.85% NaCl (mmol)</label><input type="number" id="nacl" value="0"></div>
+        <div class="input-group"><label>14.9% KCl (mmol)</label><input type="number" id="kcl" value="0"></div>
+        <div class="input-group"><label>Glycophos (mmol)</label><input type="number" id="glycophos" value="0"></div>
+    </div>
+
+    <hr>
+    <div class="input-group">
+        <label>Infusion Mode</label>
+        <select id="mode" onchange="toggleMode()">
+            <option value="whole">Whole Bag over Hours</option>
+            <option value="rate">Specific Rate (ml/hr)</option>
+        </select>
+    </div>
+
+    <div class="grid">
+        <div class="input-group" id="rateBox" style="display:none;"><label>Rate (ml/hr)</label><input type="number" id="inputRate"></div>
+        <div class="input-group"><label>Duration (hrs)</label><input type="number" id="duration" value="24"></div>
+    </div>
+
+    <button onclick="calculate()">Calculate Regimen</button>
+
+    <div id="results">
+        <div id="rateAlert" class="alert" style="display:none;"></div>
+        <h3>Summary</h3>
+        <div id="summaryContent"></div>
+    </div>
+</div>
+
+<script>
+const db = {
+    "SMOFKabiven Central 1477": { vol: 1477, kcal: 1600, protein: 75, cho: 187, lipid: 56, na: 60, k: 45, ca: 3.8, mg: 7.5, po4: 19, maxR: 2 },
+    "SMOFKabiven Central 1970": { vol: 1970, kcal: 2200, protein: 100, cho: 250, lipid: 75, na: 80, k: 60, ca: 5, mg: 10, po4: 25, maxR: 2 },
+    "SMOFKabiven Peripheral 1206": { vol: 1206, kcal: 800, protein: 38, cho: 85, lipid: 34, na: 30, k: 23, ca: 1.9, mg: 3.8, po4: 9.9, maxR: 3 },
+    "SMOFKabiven Peripheral 1448": { vol: 1448, kcal: 1000, protein: 46, cho: 103, lipid: 41, na: 36, k: 28, ca: 2.3, mg: 4.6, po4: 11.9, maxR: 3 },
+    "SMOFKabiven Peripheral 1904": { vol: 1904, kcal: 1300, protein: 60, cho: 135, lipid: 54, na: 48, k: 36, ca: 3, mg: 6, po4: 15.6, maxR: 3 },
+    "Omegaflex Special Central 1250": { vol: 1250, kcal: 1475, protein: 70.1, cho: 180, lipid: 50, na: 67, k: 47, ca: 5.3, mg: 5.3, po4: 20, maxR: 1.7 },
+    "Omegaflex Special Central 1875": { vol: 1875, kcal: 2215, protein: 105.1, cho: 270, lipid: 75, na: 100.5, k: 70.5, ca: 7.95, mg: 7.95, po4: 30, maxR: 1.7 },
+    "Omegaflex Peri 1250": { vol: 1250, kcal: 955, protein: 40, cho: 80, lipid: 50, na: 50, k: 30, ca: 3, mg: 3, po4: 7.5, maxR: 2.5 },
+    "Omegaflex Peri 1875": { vol: 1875, kcal: 1435, protein: 60, cho: 120, lipid: 75, na: 75, k: 45, ca: 4.5, mg: 4.5, po4: 11.3, maxR: 2.5 },
+    "PeriOlimel N4E 1500": { vol: 1500, kcal: 1050, protein: 38, cho: 112.5, lipid: 45, na: 31.5, k: 24, ca: 3, mg: 3.3, po4: 12.7, maxR: 3.2 },
+    "PeriOlimel N4E 2000": { vol: 2000, kcal: 1400, protein: 50.6, cho: 150, lipid: 60, na: 42, k: 32, ca: 4, mg: 4.4, po4: 17, maxR: 3.2 },
+    "Olimel N9E 1500": { vol: 1500, kcal: 1600, protein: 85.4, cho: 165, lipid: 60, na: 52.5, k: 45, ca: 5.3, mg: 6, po4: 22.5, maxR: 1.8 },
+    "Nutriflex Plus Central 1000": { vol: 1000, kcal: 792, protein: 48, cho: 150, lipid: 0, na: 37.2, k: 25, ca: 3.6, mg: 5.7, po4: 20, maxR: 1.6 },
+    "BFLUID 1000": { vol: 1000, kcal: 420, protein: 30, cho: 75, lipid: 0, na: 35, k: 20, ca: 35, mg: 5, po4: 10, maxR: 999 } // maxR set high, logic handled separately
+};
+
+// Populate Select
+const select = document.getElementById('tpnSelect');
+Object.keys(db).forEach(key => {
+    let opt = document.createElement('option');
+    opt.value = key;
+    opt.innerHTML = key;
+    select.appendChild(opt);
+});
+
+function toggleMode() {
+    document.getElementById('rateBox').style.display = document.getElementById('mode').value === 'rate' ? 'block' : 'none';
+}
+
+function calculate() {
+    const w = parseFloat(document.getElementById('weight').value);
+    if (!w) { alert("Please enter patient weight"); return; }
+    
+    const product = db[select.value];
+    const hours = parseFloat(document.getElementById('duration').value);
+    
+    // Additives
+    const addaven = parseFloat(document.getElementById('addaven').value) || 0;
+    const soluvit = parseFloat(document.getElementById('soluvit').value) || 0;
+    const vitalipid = parseFloat(document.getElementById('vitalipid').value) || 0;
+    const nacl = parseFloat(document.getElementById('nacl').value) || 0;
+    const kcl = parseFloat(document.getElementById('kcl').value) || 0;
+    const glycophos = parseFloat(document.getElementById('glycophos').value) || 0;
+
+    // Volume logic
+    let additiveVol = addaven + soluvit + vitalipid + nacl + (kcl * 0.5) + glycophos;
+    let totalVol = product.vol + additiveVol;
+    
+    // Electrolyte logic
+    let totalNa = product.na + nacl + (glycophos * 2);
+    let totalK = product.k + kcl;
+    let totalPO4 = product.po4 + glycophos;
+
+    // Rate Calculation
+    let hourlyRate;
+    if (document.getElementById('mode').value === 'whole') {
+        hourlyRate = totalVol / hours;
+    } else {
+        hourlyRate = parseFloat(document.getElementById('inputRate').value);
+    }
+    
+    let ratePerKg = hourlyRate / w;
+    
+    // Alerts
+    const alertBox = document.getElementById('rateAlert');
+    alertBox.style.display = 'none';
+    if (select.value.includes("BFLUID")) {
+        if (hourlyRate > 1000) { alertBox.style.display = 'block'; alertBox.innerHTML = "⚠️ EXCEEDS MAX RATE: BFLUID capped at 1000ml/hr"; }
+    } else if (ratePerKg > product.maxR) {
+        alertBox.style.display = 'block';
+        alertBox.innerHTML = `⚠️ EXCEEDS MAX RATE: ${ratePerKg.toFixed(2)} ml/kg/hr (Max: ${product.maxR})`;
+    }
+
+    // Render results
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('summaryContent').innerHTML = `
+        <div class="result-item"><span>Total Volume:</span><span>${totalVol.toFixed(1)} ml</span></div>
+        <div class="result-item"><span>Total Energy:</span><span>${product.kcal} kcal</span></div>
+        <div class="result-item"><span>Amino Acids:</span><span>${product.protein} g</span></div>
+        <div class="result-item"><span>Lipids:</span><span>${product.lipid} g</span></div>
+        <div class="result-item"><span>Carbohydrates:</span><span>${product.cho} g</span></div>
+        <div class="result-item"><span>Sodium (Na):</span><span>${totalNa.toFixed(1)} mmol</span></div>
+        <div class="result-item"><span>Potassium (K):</span><span>${totalK.toFixed(1)} mmol</span></div>
+        <div class="result-item"><span>Phosphate (PO4):</span><span>${totalPO4.toFixed(1)} mmol</span></div>
+        <div class="result-item"><span>Infusion Rate:</span><span>${hourlyRate.toFixed(1)} ml/hr</span></div>
+        <div class="result-item"><span>Weight-based Rate:</span><span>${ratePerKg.toFixed(2)} ml/kg/hr</span></div>
+    `;
+}
+</script>
+</body>
+</html>
