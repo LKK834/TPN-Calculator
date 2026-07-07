@@ -123,36 +123,61 @@ function calculate() {
         glycophos: parseFloat(document.getElementById('glycophos').value) || 0
     };
 
+    // Calculate total volume and standalone items in the primary prepared bag (Bag 1)
     const prepVol = product.vol + additives.trace + additives.cernevit + additives.soluvit + additives.vitalipid + additives.nacl + (additives.kcl * 0.5) + additives.glycophos;
-    const prepNa = product.na + additives.nacl + (additives.glycophos * 2);
-    const prepK = product.k + additives.kcl;
-    const prepPO4 = product.po4 + additives.glycophos;
-    const prepMg = product.mg;
-
-    let infusedVol, hourlyRate;
+    
+    let hourlyRate, infusedVol;
     if (document.getElementById('mode').value === 'whole') {
-        infusedVol = prepVol;
         hourlyRate = prepVol / duration;
+        infusedVol = prepVol;
     } else {
         hourlyRate = parseFloat(document.getElementById('inputRate').value) || 0;
         infusedVol = hourlyRate * duration;
     }
 
-    const ratio = Math.min(infusedVol / prepVol, 1);
-    
-    const delivery = {
-        vol: infusedVol,
-        kcal: product.kcal * ratio,
-        pro: product.protein * ratio,
-        cho: product.cho * ratio,
-        fat: product.lipid * ratio,
-        na: prepNa * ratio,
-        k: prepK * ratio,
-        po4: prepPO4 * ratio,
-        mg: prepMg * ratio,
-        rateKg: hourlyRate / w
-    };
+    let delivery = { vol: infusedVol, kcal: 0, pro: 0, cho: 0, fat: 0, na: 0, k: 0, po4: 0, mg: 0, rateKg: hourlyRate / w };
 
+    // MULTI-BAG LOGIC: If total volume requested exceeds Bag 1 (with additives)
+    if (infusedVol > prepVol) {
+        const remainingVol = infusedVol - prepVol;
+        // Fraction of plain base bag needed
+        const baseBagRatio = remainingVol / product.vol; 
+
+        // 100% of Bag 1 (Base + Additives) + Fraction of plain Bag 2
+        delivery.kcal = product.kcal + (product.kcal * baseBagRatio);
+        delivery.pro  = product.protein + (product.protein * baseBagRatio);
+        delivery.cho  = product.cho + (product.cho * baseBagRatio);
+        delivery.fat  = product.lipid + (product.lipid * baseBagRatio);
+        delivery.mg   = product.mg + (product.mg * baseBagRatio);
+
+        // Electrolyte calculations: Bag 1 totals + Bag 2 plain baseline fraction
+        const bag1Na = product.na + additives.nacl + (additives.glycophos * 2);
+        delivery.na = bag1Na + (product.na * baseBagRatio);
+
+        const bag1K = product.k + additives.kcl;
+        delivery.k = bag1K + (product.k * baseBagRatio);
+
+        const bag1PO4 = product.po4 + additives.glycophos;
+        delivery.po4 = bag1PO4 + (product.po4 * baseBagRatio);
+
+    } else {
+        // SINGLE BAG FALLBACK: standard proportional scaling
+        const ratio = infusedVol / prepVol;
+        const prepNa = product.na + additives.nacl + (additives.glycophos * 2);
+        const prepK = product.k + additives.kcl;
+        const prepPO4 = product.po4 + additives.glycophos;
+
+        delivery.kcal = product.kcal * ratio;
+        delivery.pro  = product.protein * ratio;
+        delivery.cho  = product.cho * ratio;
+        delivery.fat  = product.lipid * ratio;
+        delivery.na   = prepNa * ratio;
+        delivery.k    = prepK * ratio;
+        delivery.po4  = prepPO4 * ratio;
+        delivery.mg   = product.mg * ratio;
+    }
+
+    // Safety Alert Rendering
     const alertBox = document.getElementById('rateAlert');
     alertBox.style.display = 'none';
     if (select.value.includes("BFLUID") && hourlyRate > 1000) {
